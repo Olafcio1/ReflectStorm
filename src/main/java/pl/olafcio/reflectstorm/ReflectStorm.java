@@ -154,7 +154,11 @@ public final class ReflectStorm {
             try {
                 field = klass.getDeclaredField(name);
             } catch (NoSuchFieldException e) {
-                throw new ReflectStormException(fillout("[ReflectStorm] Failed to get field '%s#%s[%s]'", klass, name, type), e);
+                try {
+                    return fieldTotalHandle(name, type);
+                } catch (Throwable ex) {
+                    throw new ReflectStormException(fillout("[ReflectStorm] Failed to get field '%s#%s[%s]'", klass, name, type), ex);
+                }
             }
 
             try {
@@ -211,6 +215,41 @@ public final class ReflectStorm {
                     } catch (UnsupportedOperationException e) {
                         super.set(parent, value);
                     }
+                }
+            };
+        }
+
+        private Field fieldTotalHandle(String name, java.lang.Class<?> type) throws IllegalAccessException, NoSuchFieldException {
+            var handle = lookup.findVarHandle(klass, name, type);
+            var modes  = (Internal.unsafe == null)
+                            ? new Mode[]{ Mode.VARHANDLE }
+                            : new Mode[]{ Mode.VARHANDLE, Mode.UNSAFE };
+
+            return new Field(null, modes) {
+                @Override
+                @SuppressWarnings("unchecked")
+                public <T> T get(Object parent) {
+                    return (T) handle.get(parent);
+                }
+
+                @Override
+                public void set(Object parent, Object value) {
+                    handle.set(parent, value);
+                }
+
+                @Override
+                public Class getDeclaringClass() {
+                    return new Class(klass);
+                }
+
+                @Override
+                public String getName() {
+                    return name;
+                }
+
+                @Override
+                public java.lang.Class<?> getType() {
+                    return type;
                 }
             };
         }
