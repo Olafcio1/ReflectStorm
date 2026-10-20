@@ -157,7 +157,11 @@ public final class ReflectStorm {
                 try {
                     return fieldTotalHandle(name, type);
                 } catch (Throwable ex) {
-                    throw new ReflectStormException(fillout("[ReflectStorm] Failed to get field '%s#%s[%s]'", klass, name, type), ex);
+                    try {
+                        return fieldTotalHandleStatic(name, type);
+                    } catch (Throwable exc) {
+                        throw new ReflectStormException(fillout("[ReflectStorm] Failed to get field '%s#%s[%s]'", klass, name, type), exc);
+                    }
                 }
             }
 
@@ -205,13 +209,19 @@ public final class ReflectStorm {
                 @Override
                 @SuppressWarnings("unchecked")
                 public <T> T get(Object parent) {
-                    return (T) handle.get(parent);
+                    if (parent == null)
+                        return (T) handle.get();
+                    else
+                        return (T) handle.get(parent);
                 }
 
                 @Override
                 public void set(Object parent, Object value) {
                     try {
-                        handle.set(parent, value);
+                        if (parent == null)
+                            handle.set(value);
+                        else
+                            handle.set(parent, value);
                     } catch (UnsupportedOperationException e) {
                         super.set(parent, value);
                     }
@@ -235,6 +245,47 @@ public final class ReflectStorm {
                 @Override
                 public void set(Object parent, Object value) {
                     handle.set(parent, value);
+                }
+
+                @Override
+                public Class getDeclaringClass() {
+                    return new Class(klass);
+                }
+
+                @Override
+                public String getName() {
+                    return name;
+                }
+
+                @Override
+                public java.lang.Class<?> getType() {
+                    return type;
+                }
+            };
+        }
+
+        private Field fieldTotalHandleStatic(String name, java.lang.Class<?> type) throws IllegalAccessException, NoSuchFieldException {
+            var handle = lookup.findStaticVarHandle(klass, name, type);
+            var modes  = (Internal.unsafe == null)
+                            ? new Mode[]{ Mode.VARHANDLE }
+                            : new Mode[]{ Mode.VARHANDLE, Mode.UNSAFE };
+
+            return new Field(null, modes) {
+                @Override
+                @SuppressWarnings("unchecked")
+                public <T> T get(Object parent) {
+                    if (parent != null)
+                        throw new ReflectStormException("[Field#get] Cannot define parent to get static field '%s' on".formatted(name));
+
+                    return (T) handle.get();
+                }
+
+                @Override
+                public void set(Object parent, Object value) {
+                    if (parent != null)
+                        throw new ReflectStormException("[Field#get] Cannot define parent to get static field '%s' on".formatted(name));
+
+                    handle.set(value);
                 }
 
                 @Override

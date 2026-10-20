@@ -4,6 +4,10 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 public class ReflectStormException extends RuntimeException {
+    public ReflectStormException(String message) {
+        super(message);
+    }
+
     public ReflectStormException(String message, Throwable parent) {
         super(message, parent);
     }
