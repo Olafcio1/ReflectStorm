@@ -17,9 +17,10 @@ public final class ReflectStorm {
             this.modes = modes;
         }
 
-        public Object invoke(Object parent, Object... args) throws InvocationTargetException {
+        @SuppressWarnings("unchecked")
+        public <T> T invoke(Object parent, Object... args) throws InvocationTargetException {
             try {
-                return method.invoke(parent, args);
+                return (T) method.invoke(parent, args);
             } catch (IllegalAccessException e) {
                 throw new ReflectStormException(fillout("[ReflectStorm] Failed to access method '%s#%s(%s)' for invocation", method), e, modes);
             }
@@ -53,21 +54,22 @@ public final class ReflectStorm {
             this.modes = modes;
         }
 
-        public Object get(Object parent) {
+        @SuppressWarnings("unchecked")
+        public <T> T get(Object parent) {
             try {
-                return field.get(parent);
+                return (T) field.get(parent);
             } catch (IllegalAccessException e) {
                 if (Internal.unsafe == null)
                     throw new ReflectStormException(fillout("[ReflectStorm] Failed to access field-get '%s#%s[%s]'", field), e, modes);
 
                 try {
                     if (parent != null) {
-                        return Internal.unsafe.getObject(
+                        return (T) Internal.unsafe.getObject(
                                 parent,
                                 Internal.unsafe.objectFieldOffset(field)
                         );
                     } else {
-                        return Internal.unsafe.getObject(
+                        return (T) Internal.unsafe.getObject(
                                 Internal.unsafe.staticFieldBase(field),
                                 Internal.unsafe.staticFieldOffset(field)
                         );
@@ -173,14 +175,15 @@ public final class ReflectStorm {
 
             return new Method(method, modes) {
                 @Override
-                public Object invoke(Object parent, Object... args) throws InvocationTargetException {
+                @SuppressWarnings("unchecked")
+                public <T> T invoke(Object parent, Object... args) throws InvocationTargetException {
                     var total = new Object[args.length + 1];
 
                     total[0] = parent;
                     System.arraycopy(args, 0, total, 1, args.length);
 
                     try {
-                        return handle.invoke(total);
+                        return (T) handle.invoke(total);
                     } catch (Throwable e) {
                         throw new InvocationTargetException(e);
                     }
@@ -196,8 +199,9 @@ public final class ReflectStorm {
 
             return new Field(field, modes) {
                 @Override
-                public Object get(Object parent) {
-                    return handle.get(parent);
+                @SuppressWarnings("unchecked")
+                public <T> T get(Object parent) {
+                    return (T) handle.get(parent);
                 }
 
                 @Override
