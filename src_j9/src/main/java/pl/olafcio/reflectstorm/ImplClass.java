@@ -110,30 +110,7 @@ class ImplClass implements ReflectStorm.Class {
                     else
                         handle.set(parent, value);
                 } catch (UnsupportedOperationException e) {
-                    try {
-                        field.set(parent, value);
-                    } catch (IllegalAccessException e1) {
-                        if (UnsafeAccess.unsafe == null)
-                            throw new ReflectStormException(Util.fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), e1, modes);
-
-                        try {
-                            if (parent != null) {
-                                UnsafeAccess.unsafe.putObject(
-                                        parent,
-                                        UnsafeAccess.unsafe.objectFieldOffset(field),
-                                        value
-                                );
-                            } else {
-                                UnsafeAccess.unsafe.putObject(
-                                        UnsafeAccess.unsafe.staticFieldBase(field),
-                                        UnsafeAccess.unsafe.staticFieldOffset(field),
-                                        value
-                                );
-                            }
-                        } catch (Throwable ex) {
-                            throw new ReflectStormException(Util.fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), ex, modes);
-                        }
-                    }
+                    super.set(parent, value);
                 }
             }
         };
@@ -149,13 +126,22 @@ class ImplClass implements ReflectStorm.Class {
             @Override
             @SuppressWarnings("unchecked")
             public <T> T invoke(Object parent, Object... args) throws InvocationTargetException {
-                Object[] total = new Object[args.length + 1];
+                Object[] total;
 
-                total[0] = parent;
-                System.arraycopy(args, 0, total, 1, args.length);
+                if (parent != null) {
+                    total = new Object[args.length + 1];
+                    total[0] = parent;
+
+                    System.arraycopy(args, 0, total, 1, args.length);
+                } else {
+                    total = args;
+                }
 
                 try {
-                    return (T) handle.invoke(total);
+                    MethodHandle handle1 = handle.asType(handle.type().changeReturnType(Object.class));
+                    MethodHandle handle2 = MethodHandles.spreadInvoker(handle1.type(), 0);
+
+                    return (T) handle2.invokeExact(handle, total);
                 } catch (Throwable e) {
                     throw new InvocationTargetException(e);
                 }

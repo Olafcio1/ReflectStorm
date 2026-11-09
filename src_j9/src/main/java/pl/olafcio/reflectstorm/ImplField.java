@@ -11,6 +11,8 @@ class ImplField implements ReflectStorm.Field {
     public ImplField(Field field, Mode[] modes) {
         this.field = field;
         this.modes = modes;
+
+        field.trySetAccessible();
     }
 
     @Override
@@ -31,7 +33,7 @@ class ImplField implements ReflectStorm.Field {
     @Override
     public void set(Object parent, Object value) {
         try {
-            field.set(parent, value);
+            Shared.setAny(field, parent, value);
         } catch (IllegalAccessException e) {
             if (UnsafeAccess.unsafe == null)
                 throw new ReflectStormException(fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), e, modes);

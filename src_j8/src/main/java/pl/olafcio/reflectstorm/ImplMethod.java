@@ -12,6 +12,11 @@ class ImplMethod implements ReflectStorm.Method {
     public ImplMethod(Method method, Mode[] modes) {
         this.method = method;
         this.modes = modes;
+
+        try {
+            method.setAccessible(true);
+        } catch (Throwable ignored) {
+        }
     }
 
     @Override

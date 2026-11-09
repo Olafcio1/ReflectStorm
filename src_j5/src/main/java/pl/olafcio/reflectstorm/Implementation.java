@@ -13,11 +13,6 @@ public class Implementation extends Abstraction {
 
     @Override
     public ReflectStorm.Field createField(final Field field, final Mode[] modes) {
-        try {
-            field.setAccessible(true);
-        } catch (Throwable ignored) {
-        }
-
         return new ImplField(field, modes);
     }
 

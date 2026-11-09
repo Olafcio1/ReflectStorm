@@ -27,7 +27,7 @@ public abstract class ICMethodHandle extends ICFieldHandle {
                 System.arraycopy(args, 0, total, 1, args.length);
 
                 try {
-                    return (T) handle.invoke(total);
+                    return (T) handle.invokeWithArguments(total);
                 } catch (Throwable e) {
                     throw new InvocationTargetException(e);
                 }

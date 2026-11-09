@@ -4,6 +4,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 
 class ImplClass implements ReflectStorm.Class {
     protected final MethodHandles.Lookup lookup;
@@ -84,8 +85,12 @@ class ImplClass implements ReflectStorm.Class {
         };
     }
 
-    private ReflectStorm.Field fieldHandle(Field field) throws IllegalAccessException {
-        var handle = lookup.unreflectVarHandle(field);
+    private ReflectStorm.Field fieldHandle(Field field) throws IllegalAccessException, NoSuchFieldException {
+        var getter = lookup.unreflectGetter(field);
+        var setter = (field.getModifiers() & Modifier.STATIC) == Modifier.STATIC
+                        ? lookup.findStaticSetter(field.getDeclaringClass(), field.getName(), field.getType())
+                        : lookup.findSetter(field.getDeclaringClass(), field.getName(), field.getType());
+
         var modes = (UnsafeAccess.unsafe == null)
                 ? new Mode[]{Mode.VARHANDLE, Mode.REFLECTION}
                 : new Mode[]{Mode.VARHANDLE, Mode.REFLECTION, Mode.UNSAFE};
@@ -94,44 +99,25 @@ class ImplClass implements ReflectStorm.Class {
             @Override
             @SuppressWarnings("unchecked")
             public <T> T get(Object parent) {
-                if (parent == null)
-                    return (T) handle.get();
-                else
-                    return (T) handle.get(parent);
+                try {
+                    if (parent == null)
+                        return (T) getter.invoke();
+                    else
+                        return (T) getter.invoke(parent);
+                } catch (Throwable e) {
+                    throw new ReflectStormException(Util.fillout("[ReflectStorm] Failed to access field-get '%s#%s[%s]'", field), e, modes);
+                }
             }
 
             @Override
             public void set(Object parent, Object value) {
                 try {
                     if (parent == null)
-                        handle.set(value);
+                        setter.invoke(value);
                     else
-                        handle.set(parent, value);
-                } catch (UnsupportedOperationException e) {
-                    try {
-                        field.set(parent, value);
-                    } catch (IllegalAccessException e1) {
-                        if (UnsafeAccess.unsafe == null)
-                            throw new ReflectStormException(Util.fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), e1, modes);
-
-                        try {
-                            if (parent != null) {
-                                UnsafeAccess.unsafe.putObject(
-                                        parent,
-                                        UnsafeAccess.unsafe.objectFieldOffset(field),
-                                        value
-                                );
-                            } else {
-                                UnsafeAccess.unsafe.putObject(
-                                        UnsafeAccess.unsafe.staticFieldBase(field),
-                                        UnsafeAccess.unsafe.staticFieldOffset(field),
-                                        value
-                                );
-                            }
-                        } catch (Throwable ex) {
-                            throw new ReflectStormException(Util.fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), ex, modes);
-                        }
-                    }
+                        setter.invoke(parent, value);
+                } catch (Throwable e) {
+                    super.set(parent, value);
                 }
             }
         };
@@ -147,13 +133,22 @@ class ImplClass implements ReflectStorm.Class {
             @Override
             @SuppressWarnings("unchecked")
             public <T> T invoke(Object parent, Object... args) throws InvocationTargetException {
-                var total = new Object[args.length + 1];
+                Object[] total;
 
-                total[0] = parent;
-                System.arraycopy(args, 0, total, 1, args.length);
+                if (parent != null) {
+                    total = new Object[args.length + 1];
+                    total[0] = parent;
+
+                    System.arraycopy(args, 0, total, 1, args.length);
+                } else {
+                    total = args;
+                }
 
                 try {
-                    return (T) handle.invoke(total);
+                    var handle1 = handle.asType(handle.type().changeReturnType(Object.class));
+                    var handle2 = MethodHandles.spreadInvoker(handle1.type(), 0);
+
+                    return (T) handle2.invokeExact(handle, total);
                 } catch (Throwable e) {
                     throw new InvocationTargetException(e);
                 }
@@ -181,7 +176,7 @@ class ImplClass implements ReflectStorm.Class {
 
         try {
             return fieldHandle(field);
-        } catch (IllegalAccessException e) {
+        } catch (IllegalAccessException | NoSuchFieldException e) {
             if (UnsafeAccess.unsafe == null)
                 return Abstraction.get().createField(field, new Mode[]{Mode.REFLECTION});
             else
