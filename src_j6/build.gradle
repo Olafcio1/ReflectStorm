@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+group = 'pl.olafcio.reflectstorm.j6'
+version = rootProject.version
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly project(":")
+
+    implementation 'org.apache.logging.log4j:log4j-api:2.3.2'
+    implementation 'org.apache.logging.log4j:log4j-core:2.3.2'
+
+    implementation 'org.slf4j:slf4j-api:1.8.0-beta4'
+}
+
+test {
+    useJUnitPlatform()
+}

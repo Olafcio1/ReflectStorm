@@ -3,22 +3,15 @@ package pl.olafcio.reflectstorm;
 import sun.misc.Unsafe;
 
 import java.lang.invoke.MethodHandles;
+import java.lang.reflect.Field;
 
-enum Internal {
+enum MethodHandleAccess {
     ;
 
-    public static Unsafe unsafe;
     private static MethodHandles.Lookup IMPL_LOOKUP;
 
     private static void setup() {
-        var unsafeCls = Unsafe.class;
-        try {
-            var field = unsafeCls.getDeclaredField("theUnsafe");
-            field.setAccessible(true);
-            unsafe = (Unsafe) field.get(unsafeCls);
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
-        }
+        Unsafe unsafe = UnsafeAccess.unsafe;
 
         try {
             var f = MethodHandles.Lookup.class.getDeclaredField("IMPL_LOOKUP");

@@ -1,1 +1,8 @@
 rootProject.name = 'ReflectStorm'
+
+include 'src_j5'
+include 'src_j6'
+include 'src_j7'
+include 'src_j8'
+include 'src_j9'
+include 'src_j21'

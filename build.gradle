@@ -1,24 +1,41 @@
+import java.nio.file.Path
+
 plugins {
     id 'java'
 }
 
-group = 'pl.olafcio'
+group = 'pl.olafcio.reflectstorm'
 
-repositories {
-    mavenCentral()
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(5)
+    }
 }
 
-dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+subprojects {
+    afterEvaluate {
+        if ('jdk_path' in it.properties) {
+            compileJava.options.fork = true
+            compileJava.options.forkOptions.javaHome = Path.of((String) it.properties.jdk_path).toFile()
+        }
 
-    implementation 'org.apache.logging.log4j:log4j-api:2.26.1'
-    implementation 'org.apache.logging.log4j:log4j-core:2.26.1'
+        var project = it
+        var javaVersion = JavaLanguageVersion.of(Integer.parseInt((String) project.properties.jdk_version))
 
-    implementation 'org.slf4j:slf4j-api:2.0.20'
-}
+        dependencies {
+            testCompileOnly rootProject.sourceSets.test.output
+        }
 
-test {
-    useJUnitPlatform()
+        java {
+            targetCompatibility = javaVersion
+
+            toolchain {
+                languageVersion = javaVersion
+            }
+        }
+
+        base {
+            archivesName = "reflectstorm-${project.name.substring(4)}"
+        }
+    }
 }

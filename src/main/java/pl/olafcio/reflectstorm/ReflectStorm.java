@@ -1,337 +1,124 @@
 package pl.olafcio.reflectstorm;
 
-import java.lang.invoke.MethodHandles;
 import java.lang.reflect.InvocationTargetException;
-import java.util.Arrays;
-import java.util.stream.Collectors;
+import java.lang.reflect.Method;
 
+/**
+ * <p><h2>ReflectStorm: A cross-compatible Java reflection wrapper.</h2>
+ * <hr/>
+ * <p>ReflectStorm utilizes the power of <i>{@linkplain Object#getClass() reflection}</i>,
+ *                                       <i>{@linkplain java.lang.invoke.MethodHandles method handles}</i> and
+ *                                       <i>{@linkplain sun.misc.Unsafe unsafe}</i>.
+ * <p><u>Thanks to them, you can:</u>
+ * <ul>
+ *     <li>reflect classes: {@link ReflectStorm#builder() ReflectStorm.builder()},</li>
+ *     <li>reflect methods: {@link ReflectStorm.Method},</li>
+ *     <li>reflect fields: {@link ReflectStorm.Field};</li>
+ * </ul>
+ * <p>and more coming soon!
+ */
 public final class ReflectStorm {
     private ReflectStorm() {}
 
-    public static class Method {
-        protected final java.lang.reflect.Method method;
-        protected final Mode[] modes;
+    /**
+     * A wrapped method.
+     * <br><br>
+     * You can get this object via
+     * <ol>
+     *     <li>{@link Class#method(String, java.lang.Class[]) Class#method(...)} (for class objects),</li>
+     *     <li>{@link Abstraction#createMethod Abstraction.get().createMethod(...)} (for {@linkplain java.lang.reflect.Method java reflection methods}).</li>
+     * </ol>
+     */
+    public interface Method {
+        /**
+         * Invokes the method.
+         * @param parent The object to invoke on. {@code null} if static.
+         * @param args The parameters to specify.
+         * @return The return value of the invoked method.
+         * @param <T> The return type.
+         * @throws InvocationTargetException Thrown when the invoked method throws an exception.
+         */
+        <T> T invoke(Object parent, Object... args) throws InvocationTargetException;
 
-        protected Method(java.lang.reflect.Method method, Mode[] modes) {
-            this.method = method;
-            this.modes = modes;
-        }
+        /**
+         * Returns the class which the method was declared in.
+         * @return The class which the method was declared in.
+         */
+        Class getDeclaringClass();
 
-        @SuppressWarnings("unchecked")
-        public <T> T invoke(Object parent, Object... args) throws InvocationTargetException {
-            try {
-                return (T) method.invoke(parent, args);
-            } catch (IllegalAccessException e) {
-                throw new ReflectStormException(fillout("[ReflectStorm] Failed to access method '%s#%s(%s)' for invocation", method), e, modes);
-            }
-        }
+        /**
+         * Returns the name of the method.
+         */
+        String getName();
 
-        public Class getDeclaringClass() {
-            return new Class(method.getDeclaringClass());
-        }
+        /**
+         * Returns the method's parameter types.
+         * @return The method's parameter types.
+         */
+        java.lang.Class<?>[] getParameterTypes();
 
-        public String getName() {
-            return method.getName();
-        }
-
-        public java.lang.Class<?>[] getParameterTypes() {
-            return method.getParameterTypes();
-        }
-
-        public int getParameterCount() {
-            return method.getParameterCount();
-        }
+        /**
+         * Returns the method's parameter count.
+         * @return How many parameters does this method have.
+         */
+        int getParameterCount();
     }
 
-    public static class Field {
-        protected final java.lang.reflect.Field field;
-        protected final Mode[] modes;
+    /**
+     * A wrapped field.
+     */
+    public interface Field {
+        /**
+         * Returns the field's value on the given object.
+         * @param parent The object to retrieve the field's value from. {@code null} if static.
+         * @return The field's value.
+         * @param <T> Type to cast the field's value to.
+         */
+        <T> T get(Object parent);
 
-        protected Field(java.lang.reflect.Field field, Mode[] modes) {
-            this.field = field;
-            this.field.trySetAccessible();
+        /**
+         * Sets the field's value on the given object.
+         * @param parent The object to set the field's value on. {@code null} if static.
+         * @param value The field's new value.
+         */
+        void set(Object parent, Object value);
 
-            this.modes = modes;
-        }
+        /**
+         * Returns the class which the field was declared in.
+         * @return The class which the field was declared in.
+         */
+        Class getDeclaringClass();
 
-        @SuppressWarnings("unchecked")
-        public <T> T get(Object parent) {
-            try {
-                return (T) field.get(parent);
-            } catch (IllegalAccessException e) {
-                if (Internal.unsafe == null)
-                    throw new ReflectStormException(fillout("[ReflectStorm] Failed to access field-get '%s#%s[%s]'", field), e, modes);
+        /**
+         * Returns the name of the field.
+         */
+        String getName();
 
-                try {
-                    if (parent != null) {
-                        return (T) Internal.unsafe.getObject(
-                                parent,
-                                Internal.unsafe.objectFieldOffset(field)
-                        );
-                    } else {
-                        return (T) Internal.unsafe.getObject(
-                                Internal.unsafe.staticFieldBase(field),
-                                Internal.unsafe.staticFieldOffset(field)
-                        );
-                    }
-                } catch (Throwable ex) {
-                    throw new ReflectStormException(fillout("[ReflectStorm] Failed to access field-get '%s#%s[%s]'", field), ex, modes);
-                }
-            }
-        }
-
-        public void set(Object parent, Object value) {
-            try {
-                field.set(parent, value);
-            } catch (IllegalAccessException e) {
-                if (Internal.unsafe == null)
-                    throw new ReflectStormException(fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), e, modes);
-
-                try {
-                    if (parent != null) {
-                        Internal.unsafe.putObject(
-                                parent,
-                                Internal.unsafe.objectFieldOffset(field),
-                                value
-                        );
-                    } else {
-                        Internal.unsafe.putObject(
-                                Internal.unsafe.staticFieldBase(field),
-                                Internal.unsafe.staticFieldOffset(field),
-                                value
-                        );
-                    }
-                } catch (Throwable ex) {
-                    throw new ReflectStormException(fillout("[ReflectStorm] Failed to access field-set '%s#%s[%s]'", field), ex, modes);
-                }
-            }
-        }
-
-        public Class getDeclaringClass() {
-            return new Class(field.getDeclaringClass());
-        }
-
-        public String getName() {
-            return field.getName();
-        }
-
-        public java.lang.Class<?> getType() {
-            return field.getType();
-        }
+        /**
+         * Returns the field's type.
+         */
+        java.lang.Class<?> getType();
     }
 
-    public static class Class {
-        protected final java.lang.Class<?> klass;
-        protected final MethodHandles.Lookup lookup;
+    /**
+     * A wrapped class.
+     */
+    public interface Class {
+        /**
+         * Finds a method with the given name and parameters.
+         * @param name The name of the method to find.
+         * @param args The parameter types of the method to find.
+         * @return The found method, wrapped with {@link Method}.
+         */
+        Method method(String name, java.lang.Class<?>... args);
 
-        protected Class(java.lang.Class<?> klass) {
-            this.klass = klass;
-            this.lookup = Internal.getLookupFor(klass);
-        }
-
-        public Method method(String name, java.lang.Class<?>... args) {
-            java.lang.reflect.Method method;
-
-            try {
-                method = klass.getDeclaredMethod(name, args);
-            } catch (NoSuchMethodException e) {
-                throw new ReflectStormException(fillout("[ReflectStorm] Failed to get method '%s#%s(%s)'", klass, name, args), e);
-            }
-
-            try {
-                return methodHandle(method);
-            } catch (IllegalAccessException e) {
-                if (Internal.unsafe == null)
-                    return new Method(method, new Mode[]{ Mode.REFLECTION });
-                else
-                    return new Method(method, new Mode[]{ Mode.REFLECTION, Mode.UNSAFE });
-            }
-        }
-
-        public Field field(String name, java.lang.Class<?> type) {
-            java.lang.reflect.Field field;
-
-            try {
-                field = klass.getDeclaredField(name);
-            } catch (NoSuchFieldException e) {
-                try {
-                    return fieldTotalHandle(name, type);
-                } catch (Throwable ex) {
-                    try {
-                        return fieldTotalHandleStatic(name, type);
-                    } catch (Throwable exc) {
-                        throw new ReflectStormException(fillout("[ReflectStorm] Failed to get field '%s#%s[%s]'", klass, name, type), exc);
-                    }
-                }
-            }
-
-            try {
-                return fieldHandle(field);
-            } catch (IllegalAccessException e) {
-                if (Internal.unsafe == null)
-                    return new Field(field, new Mode[]{ Mode.REFLECTION });
-                else
-                    return new Field(field, new Mode[]{ Mode.REFLECTION, Mode.UNSAFE });
-            }
-        }
-
-        private Method methodHandle(java.lang.reflect.Method method) throws IllegalAccessException {
-            var handle = lookup.unreflect(method);
-            var modes  = (Internal.unsafe == null)
-                            ? new Mode[]{ Mode.VARHANDLE, Mode.REFLECTION }
-                            : new Mode[]{ Mode.VARHANDLE, Mode.REFLECTION, Mode.UNSAFE };
-
-            return new Method(method, modes) {
-                @Override
-                @SuppressWarnings("unchecked")
-                public <T> T invoke(Object parent, Object... args) throws InvocationTargetException {
-                    var total = new Object[args.length + 1];
-
-                    total[0] = parent;
-                    System.arraycopy(args, 0, total, 1, args.length);
-
-                    try {
-                        return (T) handle.invoke(total);
-                    } catch (Throwable e) {
-                        throw new InvocationTargetException(e);
-                    }
-                }
-            };
-        }
-
-        private Field fieldHandle(java.lang.reflect.Field field) throws IllegalAccessException {
-            var handle = lookup.unreflectVarHandle(field);
-            var modes  = (Internal.unsafe == null)
-                            ? new Mode[]{ Mode.VARHANDLE, Mode.REFLECTION }
-                            : new Mode[]{ Mode.VARHANDLE, Mode.REFLECTION, Mode.UNSAFE };
-
-            return new Field(field, modes) {
-                @Override
-                @SuppressWarnings("unchecked")
-                public <T> T get(Object parent) {
-                    if (parent == null)
-                        return (T) handle.get();
-                    else
-                        return (T) handle.get(parent);
-                }
-
-                @Override
-                public void set(Object parent, Object value) {
-                    try {
-                        if (parent == null)
-                            handle.set(value);
-                        else
-                            handle.set(parent, value);
-                    } catch (UnsupportedOperationException e) {
-                        super.set(parent, value);
-                    }
-                }
-            };
-        }
-
-        private Field fieldTotalHandle(String name, java.lang.Class<?> type) throws IllegalAccessException, NoSuchFieldException {
-            var handle = lookup.findVarHandle(klass, name, type);
-            var modes  = (Internal.unsafe == null)
-                            ? new Mode[]{ Mode.VARHANDLE }
-                            : new Mode[]{ Mode.VARHANDLE, Mode.UNSAFE };
-
-            return new Field(null, modes) {
-                @Override
-                @SuppressWarnings("unchecked")
-                public <T> T get(Object parent) {
-                    return (T) handle.get(parent);
-                }
-
-                @Override
-                public void set(Object parent, Object value) {
-                    handle.set(parent, value);
-                }
-
-                @Override
-                public Class getDeclaringClass() {
-                    return new Class(klass);
-                }
-
-                @Override
-                public String getName() {
-                    return name;
-                }
-
-                @Override
-                public java.lang.Class<?> getType() {
-                    return type;
-                }
-            };
-        }
-
-        private Field fieldTotalHandleStatic(String name, java.lang.Class<?> type) throws IllegalAccessException, NoSuchFieldException {
-            var handle = lookup.findStaticVarHandle(klass, name, type);
-            var modes  = (Internal.unsafe == null)
-                            ? new Mode[]{ Mode.VARHANDLE }
-                            : new Mode[]{ Mode.VARHANDLE, Mode.UNSAFE };
-
-            return new Field(null, modes) {
-                @Override
-                @SuppressWarnings("unchecked")
-                public <T> T get(Object parent) {
-                    if (parent != null)
-                        throw new ReflectStormException("[Field#get] Cannot define parent to get static field '%s' on".formatted(name));
-
-                    return (T) handle.get();
-                }
-
-                @Override
-                public void set(Object parent, Object value) {
-                    if (parent != null)
-                        throw new ReflectStormException("[Field#get] Cannot define parent to get static field '%s' on".formatted(name));
-
-                    handle.set(value);
-                }
-
-                @Override
-                public Class getDeclaringClass() {
-                    return new Class(klass);
-                }
-
-                @Override
-                public String getName() {
-                    return name;
-                }
-
-                @Override
-                public java.lang.Class<?> getType() {
-                    return type;
-                }
-            };
-        }
-    }
-
-    private static String fillout(String text, java.lang.reflect.Method method) {
-        return fillout(
-                text,
-                method.getDeclaringClass(),
-                method.getName(),
-                method.getParameterTypes()
-        );
-    }
-
-    private static String fillout(String text, java.lang.reflect.Field field) {
-        return fillout(
-                text,
-                field.getDeclaringClass(),
-                field.getName(),
-                field.getType()
-        );
-    }
-
-    private static String fillout(String text, java.lang.Class<?> klass, String name, java.lang.Class<?>... args) {
-        return text.formatted(
-                klass.getName(),
-                name,
-                Arrays.stream(args)
-                      .map(java.lang.Class::getName)
-                      .collect(Collectors.joining(", "))
-        );
+        /**
+         * Finds a field with the given name and type.
+         * @param name The name of the field to find.
+         * @param type The type of the field to find.
+         * @return The found field, wrapped with {@link Field}.
+         */
+        Field field(String name, java.lang.Class<?> type);
     }
 
     public static class Builder {
@@ -342,22 +129,25 @@ public final class ReflectStorm {
         }
 
         public Class klass(java.lang.Class<?> klass) {
-            return new Class(klass);
+            return Abstraction.get().createClass(klass);
         }
 
         public Class klass(String name) {
             try {
                 if (this.classLoader != null) {
-                    return new Class(this.classLoader.loadClass(name));
+                    return Abstraction.get().createClass(this.classLoader.loadClass(name));
                 } else {
-                    return new Class(java.lang.Class.forName(name));
+                    return Abstraction.get().createClass(java.lang.Class.forName(name));
                 }
             } catch (ClassNotFoundException e) {
-                throw new ReflectStormException("[ReflectStorm] Failed to find class '%s'".formatted(name), e);
+                throw new ReflectStormException(String.format("[ReflectStorm] Failed to find class '%s'", name), e);
             }
         }
     }
 
+    /**
+     * Returns a builder to load a class.
+     */
     public static ReflectStorm.Builder builder() {
         return new ReflectStorm.Builder();
     }

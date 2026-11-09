@@ -1,0 +1,21 @@
+plugins {
+    id 'java'
+}
+
+group = 'pl.olafcio.reflectstorm.j5'
+version = rootProject.version
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileOnly project(":")
+
+    // Source: https://mvnrepository.com/artifact/ch.qos.reload4j/reload4j
+    implementation 'ch.qos.reload4j:reload4j:1.2.27'
+}
+
+test {
+    useJUnitPlatform()
+}
