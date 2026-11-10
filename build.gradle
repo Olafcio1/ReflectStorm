@@ -26,6 +26,10 @@ subprojects {
             testCompileOnly rootProject.sourceSets.test.output
         }
 
+        compileTestJava {
+            targetCompatibility = javaVersion
+        }
+
         java {
             targetCompatibility = javaVersion
 
@@ -36,6 +40,52 @@ subprojects {
 
         base {
             archivesName = "reflectstorm-${project.name.substring(4)}"
+        }
+    }
+}
+
+allprojects {
+    afterEvaluate {
+        repositories {
+            mavenCentral()
+        }
+
+        dependencies {
+            testImplementation 'junit:junit:4.13.2'
+        }
+
+        tasks.withType(Test).tap {
+            configureEach {
+                enabled = false
+            }
+        }
+
+        tasks.register('testJar', Jar) {
+            from compileTestJava
+            archiveFileName.set('../test-libs/compileTest.jar')
+        }
+
+        var project = it
+        if (project == rootProject)
+            return
+
+        tasks.register('tests', JavaExec) {
+            dependsOn build
+            dependsOn testJar
+
+            var testFiles = rootProject.file("src/test/java/").list()
+                                                   .findAll(fn -> fn.endsWith(".java"))
+                                                   .collect(fn -> fn.substring(0, fn.length() - 5))
+
+            maxHeapSize = '128M'
+            classpath = configurations.compileClasspath + configurations.runtimeClasspath +
+                        configurations.testCompileClasspath + configurations.testRuntimeClasspath +
+                        rootProject.files(testJar.archiveFile) +
+                        rootProject.files(jar.archiveFile) +
+                        rootProject.files(project.tasks.jar.archiveFile)
+
+            mainClass = 'org.junit.runner.JUnitCore'
+            args = testFiles
         }
     }
 }
