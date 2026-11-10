@@ -119,6 +119,20 @@ public final class ReflectStorm {
          * @return The found field, wrapped with {@link Field}.
          */
         Field field(String name, java.lang.Class<?> type);
+
+        /**
+         * Returns whether the given class extends this class.
+         * @param klass The class to check.
+         * @return Whether the given class extends this class.
+         */
+        boolean isExtendedBy(java.lang.Class<?> klass);
+
+        /**
+         * Returns whether a class under the given name extends this class.
+         * @param klassName The name of the class to check.
+         * @return Whether the given class extends this class.
+         */
+        boolean isExtendedBy(String klassName);
     }
 
     public static class Builder {

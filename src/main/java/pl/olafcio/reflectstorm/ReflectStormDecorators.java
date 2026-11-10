@@ -75,5 +75,13 @@ public final class ReflectStormDecorators {
         public ReflectStorm.Field field(String name, java.lang.Class<?> type) {
             return delegate.field(name, type);
         }
+
+        public boolean isExtendedBy(java.lang.Class<?> klass) {
+            return delegate.isExtendedBy(klass);
+        }
+
+        public boolean isExtendedBy(String klassName) {
+            return delegate.isExtendedBy(klassName);
+        }
     }
 }

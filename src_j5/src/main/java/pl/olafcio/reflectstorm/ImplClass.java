@@ -39,4 +39,16 @@ class ImplClass implements ReflectStorm.Class {
         else
             return Abstraction.get().createMethod(method, new Mode[]{Mode.REFLECTION, Mode.UNSAFE});
     }
+
+    public boolean isExtendedBy(String klassName) {
+        try {
+            return klass.isAssignableFrom(Class.forName(klassName));
+        } catch (ClassNotFoundException e) {
+            throw new ReflectStormException(String.format("[ReflectStorm] Failed to find class '%s'", klassName), e);
+        }
+    }
+
+    public boolean isExtendedBy(Class<?> klass) {
+        return klass.isAssignableFrom(klass);
+    }
 }
