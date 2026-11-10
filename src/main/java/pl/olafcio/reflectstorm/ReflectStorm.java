@@ -1,7 +1,8 @@
 package pl.olafcio.reflectstorm;
 
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URL;
 
 /**
  * <p><h2>ReflectStorm: A cross-compatible Java reflection wrapper.</h2>
@@ -14,6 +15,10 @@ import java.lang.reflect.Method;
  *     <li>reflect classes: {@link ReflectStorm#builder() ReflectStorm.builder()},</li>
  *     <li>reflect methods: {@link ReflectStorm.Method},</li>
  *     <li>reflect fields: {@link ReflectStorm.Field};</li>
+ * </ul>
+ * <p><u>...and additionally:</u>
+ * <ul>
+ *     <li>reflect classloaders: {@link ReflectStorm#classpath() ReflectStorm.classpath()};</li>
  * </ul>
  * <p>and more coming soon!
  */
@@ -164,5 +169,57 @@ public final class ReflectStorm {
      */
     public static ReflectStorm.Builder builder() {
         return new ReflectStorm.Builder();
+    }
+
+    /**
+     * An interface for modifying the classpath of a {@linkplain java.net.URLClassLoader URLClassLoader} or
+     *                                               {@linkplain jdk.internal.loader.BuiltinClassLoader BuiltinClassLoader}.
+     * <br><br>
+     * <i>(side-note: {@linkplain sun.misc.Launcher.AppClassLoader Sun's AppClassLoader}, which is the legacy launcher, extends URLClassLoader.)</i>
+     */
+    public interface Classpath {
+        /**
+         * Adds a file under the given path to this classpath.
+         * @param path The file to add to this classpath.
+         */
+        void addFile(String path);
+
+        /**
+         * Adds the given URL to this classpath.
+         * @param url The URL to add to this classpath.
+         */
+        void addURL(URL url);
+
+        /**
+         * Adds the given URI converted to a URL to this classpath.
+         * @param url The URI to convert to URL and then add to this classpath.
+         */
+        void addURI(URI url);
+
+        /**
+         * The type of built-in classloader.
+         */
+        enum BuiltinCL {
+            BOOT,
+            PLATFORM,
+            APP
+        }
+    }
+
+    public static class ClasspathBuilder {
+        public Classpath klassLoader(ClassLoader classLoader) {
+            return Abstraction.get().createClasspath(classLoader);
+        }
+
+        public Classpath klassLoader(ReflectStorm.Classpath.BuiltinCL classLoader) {
+            return Abstraction.get().createClasspath(Abstraction.get().getClassLoader(classLoader));
+        }
+    }
+
+    /**
+     * Returns a builder to modify the classpath of classloaders.
+     */
+    public static ClasspathBuilder classpath() {
+        return new ReflectStorm.ClasspathBuilder();
     }
 }

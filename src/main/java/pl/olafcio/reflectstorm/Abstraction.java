@@ -34,4 +34,7 @@ public abstract class Abstraction {
     public abstract ReflectStorm.Class createClass(Class<?> klass);
 
     public abstract void warn(String message);
+
+    public abstract ReflectStorm.Classpath createClasspath(ClassLoader classLoader) throws UnsupportedOperationException;
+    public abstract ClassLoader getClassLoader(ReflectStorm.Classpath.BuiltinCL classLoader) throws UnsupportedOperationException;
 }

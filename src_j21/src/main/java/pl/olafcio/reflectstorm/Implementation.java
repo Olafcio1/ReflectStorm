@@ -3,7 +3,12 @@ package pl.olafcio.reflectstorm;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URL;
+import java.net.URLClassLoader;
 
 public class Implementation extends Abstraction {
     @Override
@@ -25,5 +30,101 @@ public class Implementation extends Abstraction {
     public void warn(String message) {
         LoggerFactory.getLogger("ReflectStorm")
                      .warn(message);
+    }
+
+    @Override
+    public ReflectStorm.Classpath createClasspath(ClassLoader classLoader) {
+        var bcl = ReflectStorm.builder().klass("jdk.internal.loader.BuiltinClassLoader");
+        if (bcl.isExtendedBy(classLoader.getClass())) {
+            return new ReflectStorm.Classpath() {
+                @Override
+                public void addFile(String path) {
+                    try {
+                        bcl.method("appendClassPath", String.class)
+                           .invoke(this.getClass().getClassLoader(), path);
+                    } catch (InvocationTargetException e) {
+                        throw new RuntimeException("[ReflectStorm] Failed to Classpath#addFile", e);
+                    }
+                }
+
+                @Override
+                public void addURL(URL url) {
+                    addFile(url.toString());
+                }
+
+                @Override
+                public void addURI(URI url) {
+                    addFile(url.toString());
+                }
+            };
+        }
+
+        if (classLoader instanceof URLClassLoader) {
+            var ucl = ReflectStorm.builder().klass(URLClassLoader.class);
+
+            return new ReflectStorm.Classpath() {
+                @Override
+                public void addFile(String path) {
+                    try {
+                        ucl.method("addFile", String.class)
+                           .invoke(this.getClass().getClassLoader(), path);
+                    } catch (InvocationTargetException e) {
+                        throw new RuntimeException("[ReflectStorm] Failed to Classpath#addFile", e);
+                    }
+                }
+
+                @Override
+                public void addURL(URL url) {
+                    try {
+                        ucl.method("addURL", URL.class)
+                           .invoke(this.getClass().getClassLoader(), url);
+                    } catch (InvocationTargetException e) {
+                        throw new RuntimeException("[ReflectStorm] Failed to Classpath#addURL", e);
+                    }
+                }
+
+                @Override
+                public void addURI(URI url) {
+                    try {
+                        addURL(url.toURL());
+                    } catch (MalformedURLException e) {
+                        throw new RuntimeException("[ReflectStorm] Failed to convert URI to URL in Classpath#addURI", e);
+                    }
+                }
+            };
+        }
+
+        throw new UnsupportedOperationException("Unable to modify classpath of %s; presumably a non-JDK classloader".formatted(classLoader));
+    }
+
+    @Override
+    public ClassLoader getClassLoader(ReflectStorm.Classpath.BuiltinCL classLoader) {
+        if (classLoader == ReflectStorm.Classpath.BuiltinCL.APP) {
+            try {
+                return ReflectStorm.builder().klass("jdk.internal.loader.ClassLoaders")
+                                             .method("appClassLoader")
+                                             .invoke(null);
+            } catch (InvocationTargetException e) {
+                throw new UnsupportedOperationException("[ReflectStorm] getClassLoader(APP) failed", e);
+            }
+        } else if (classLoader == ReflectStorm.Classpath.BuiltinCL.BOOT) {
+            try {
+                return ReflectStorm.builder().klass("jdk.internal.loader.ClassLoaders")
+                                             .method("bootLoader")
+                                             .invoke(null);
+            } catch (InvocationTargetException e) {
+                throw new UnsupportedOperationException("[ReflectStorm] getClassLoader(BOOT) failed", e);
+            }
+        } else if (classLoader == ReflectStorm.Classpath.BuiltinCL.PLATFORM) {
+            try {
+                return ReflectStorm.builder().klass("jdk.internal.loader.ClassLoaders")
+                                             .method("platformClassLoader")
+                                             .invoke(null);
+            } catch (InvocationTargetException e) {
+                throw new UnsupportedOperationException("[ReflectStorm] getClassLoader(PLATFORM) failed", e);
+            }
+        }
+
+        return null;
     }
 }
