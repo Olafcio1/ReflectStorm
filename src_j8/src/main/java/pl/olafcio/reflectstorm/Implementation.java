@@ -51,7 +51,7 @@ public class Implementation extends Abstraction {
                 public void addURL(URL url) {
                     try {
                         ucl.method("addURL", URL.class)
-                           .invoke(this.getClass().getClassLoader(), url);
+                           .invoke(classLoader, url);
                     } catch (InvocationTargetException e) {
                         throw new RuntimeException("[ReflectStorm] Failed to Classpath#addURL", e);
                     }

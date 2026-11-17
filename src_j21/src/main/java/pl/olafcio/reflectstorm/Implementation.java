@@ -41,7 +41,7 @@ public class Implementation extends Abstraction {
                 public void addFile(String path) {
                     try {
                         bcl.method("appendClassPath", String.class)
-                           .invoke(this.getClass().getClassLoader(), path);
+                           .invoke(classLoader, path);
                     } catch (InvocationTargetException e) {
                         throw new RuntimeException("[ReflectStorm] Failed to Classpath#addFile", e);
                     }
@@ -67,7 +67,7 @@ public class Implementation extends Abstraction {
                 public void addFile(String path) {
                     try {
                         ucl.method("addFile", String.class)
-                           .invoke(this.getClass().getClassLoader(), path);
+                           .invoke(classLoader, path);
                     } catch (InvocationTargetException e) {
                         throw new RuntimeException("[ReflectStorm] Failed to Classpath#addFile", e);
                     }
@@ -77,7 +77,7 @@ public class Implementation extends Abstraction {
                 public void addURL(URL url) {
                     try {
                         ucl.method("addURL", URL.class)
-                           .invoke(this.getClass().getClassLoader(), url);
+                           .invoke(classLoader, url);
                     } catch (InvocationTargetException e) {
                         throw new RuntimeException("[ReflectStorm] Failed to Classpath#addURL", e);
                     }

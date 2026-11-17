@@ -35,7 +35,7 @@ public class Implementation extends Abstraction {
     }
 
     @Override
-    public ReflectStorm.Classpath createClasspath(ClassLoader classLoader) throws UnsupportedOperationException {
+    public ReflectStorm.Classpath createClasspath(final ClassLoader classLoader) throws UnsupportedOperationException {
         if (classLoader instanceof URLClassLoader) {
             final ReflectStorm.Class ucl = ReflectStorm.builder().klass(URLClassLoader.class);
 
@@ -51,7 +51,7 @@ public class Implementation extends Abstraction {
                 public void addURL(URL url) {
                     try {
                         ucl.method("addURL", URL.class)
-                           .invoke(this.getClass().getClassLoader(), url);
+                           .invoke(classLoader, url);
                     } catch (InvocationTargetException e) {
                         throw new RuntimeException("[ReflectStorm] Failed to Classpath#addURL", e);
                     }
